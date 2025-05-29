@@ -6,12 +6,12 @@ import sqlite3
 import re
 import requests
 
-app = Flask(__name__) # FIX: Corrected __init__ to __name__
+app = Flask(__name__)
 CORS(app)
 
 UPLOAD_FOLDER = 'uploads'
 DATABASE = 'data/analytics.db'
-OLLAMA_API_URL = 'http://localhost:11434/api/generate' # Configure your Ollama API endpoint
+OLLAMA_API_URL = 'http://10.71.99.51:6042/api/generate' # Configure your Ollama API endpoint
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -91,7 +91,7 @@ def get_ollama_recommendation(prompt):
     try:
         headers = {'Content-Type': 'application/json'}
         data = {
-            "model": "llama2", # <<< IMPORTANT: Change to your downloaded Ollama model name (e.g., "mistral", "phi3")
+            "model": "devstral:24b", # <<< This was corrected in the last step
             "prompt": prompt,
             "stream": False
         }
@@ -256,14 +256,47 @@ def check_and_trigger_recommendations(table_id, table_name, df_data, conn):
                 
                 # Prepare prompt for Ollama
                 schema_info = ", ".join(df_data.columns.tolist())
+                
+                # Dynamic context based on common monitoring metrics
+                # You can expand this 'if/elif' block for more specific scenarios
+                additional_guidance = "" # This was the fix from before
+                if "Cpu usage" in original_column_name or "CPU_Usage" in original_column_name:
+                    additional_guidance = (
+                        f"- If CPU usage is high, common recommendations include 'Identify and terminate resource-intensive applications or processes.', "
+                        f"'Review recent code deployments or system updates.', or 'Consider scaling up CPU resources.'\n"
+                        f"- If active processes are unusually high, suggest 'Investigate unusual process spikes or potential malware.'\n"
+                        f"- If memory usage is high, suggest 'Optimize memory-hungry services or add more RAM.'\n"
+                        f"- If disk space is low, suggest 'Clean up temporary files and old logs, or unnecessary data.'\n"
+                    )
+                elif "Memory usage" in original_column_name or "Memory_Usage" in original_column_name:
+                     additional_guidance = (
+                        f"- If memory usage is high, common recommendations include 'Identify memory-leaking applications and restart them.', "
+                        f"'Optimize memory-hungry services or configurations.', or 'Consider increasing server RAM.'\n"
+                    )
+                elif "Disk space" in original_column_name or "Disk_Space" in original_column_name:
+                    additional_guidance = (
+                        f"- If disk space is low, common recommendations include 'Clear temporary files, old logs, and caches.', "
+                        f"'Review large files and relocate or delete unnecessary data.', or 'Consider expanding storage capacity.'\n"
+                    )
+                elif "Processes" in original_column_name or "Active_Processes" in original_column_name:
+                    additional_guidance = (
+                        f"- If the number of processes is high, common recommendations include 'Identify and stop unnecessary background processes.', "
+                        f"'Check for runaway processes or misconfigured services.', or 'Scan for malware or rootkits.'\n"
+                    )
+                # You can add more 'elif' blocks for other common metrics you monitor (e.g., Network_Latency, Error_Rate)
+
+
                 prompt = (
-                    f"Context: I am monitoring data from a CSV file transformed into a table named '{table_name}' "
-                    f"with columns: [{schema_info}].\n"
-                    f"A predefined threshold was breached: The {function} of the column '{original_column_name}' "
-                    f"is {current_value}, which is {operator} the defined threshold of {value}.\n"
-                    f"Please provide a concise recommendation or insight based on this breach. "
-                    f"For example, if 'AVG(CPU_Usage)' is high, suggest 'Investigate background processes'. "
-                    f"Do not ask for more information. Just provide the direct recommendation relevant to a system's health or operational efficiency."
+                    f"You are an intelligent system monitoring assistant. Your task is to provide concise and actionable "
+                    f"recommendations when a system metric breaches a predefined threshold.\n\n"
+                    f"The current system data is from a table named '{table_name}' with the following columns: [{schema_info}].\n"
+                    f"A critical threshold has been breached: The {function} of the column '{original_column_name}' "
+                    f"is currently {current_value}, which is {operator} the defined threshold of {value}.\n\n"
+                    f"Based on this, provide a **single, direct, and actionable recommendation** for a system administrator or user. "
+                    f"Avoid asking questions or providing lengthy explanations. Focus only on the solution.\n"
+                    f"Here are some examples of the type of recommendations expected:\n"
+                    f"{additional_guidance}" # Dynamically added guidance
+                    f"Provide the recommendation clearly and concisely."
                 )
                 
                 ollama_recommendation_text = get_ollama_recommendation(prompt)
@@ -539,12 +572,13 @@ def get_past_recommendations():
             r.timestamp,
             r.table_name,
             r.column_name,
-            r.function_name, -- NEW
+            r.function_name,
             r.current_value,
             r.threshold_value,
-            thr.operator AS threshold_operator -- Use 'thr' alias for clarity
+            thr.operator AS threshold_operator,
+            r.recommendation_text -- Ensure this column is selected
         FROM recommendations r
-        LEFT JOIN thresholds thr ON r.threshold_id = thr.id 
+        LEFT JOIN thresholds thr ON r.threshold_id = thr.id
         ORDER BY r.timestamp DESC;
     """)
     recs_data = cursor.fetchall()
@@ -552,16 +586,37 @@ def get_past_recommendations():
 
     result = []
     for row in recs_data:
+        # --- REVERTED AND SLIGHTLY MODIFIED LINE HERE ---
+        # Access directly by column name. If the column is NULL in DB,
+        # it will be None in Python, which is fine.
+        # The previous IndexError implied the key 'recommendation_text' was sometimes truly missing from the row object
+        # which is problematic if the query explicitly selects it.
+        # Let's assume the query is correct and the issue was historical data or a very specific timing.
+        recommendation_text_val = row['recommendation_text'] if 'recommendation_text' in row.keys() else 'N/A: Recommendation not available or failed to generate.'
+
+        # Alternatively, if you are certain 'recommendation_text' will always be selected
+        # (which it should be based on your SQL query), then simply:
+        # recommendation_text_val = row['recommendation_text']
+        # If the value itself is NULL in the DB, it will be None in Python.
+        # You can then display "N/A" if it's None.
+
+        # Let's go with this, it's safer given the persistent issue:
+        # Check if the key exists AND if the value isn't None
+        if 'recommendation_text' in row.keys() and row['recommendation_text'] is not None:
+            recommendation_text_val = row['recommendation_text']
+        else:
+            recommendation_text_val = 'N/A: Recommendation not available or failed to generate.'
+        
         result.append({
             "id": row['id'],
             "timestamp": row['timestamp'],
             "table_name": row['table_name'],
             "column_name": row['column_name'],
-            "function_name": row['function_name'], # NEW
+            "function_name": row['function_name'],
             "current_value": row['current_value'],
             "threshold_value": row['threshold_value'],
             "threshold_operator": row['threshold_operator'],
-            "recommendation_text": row['recommendation_text']
+            "recommendation_text": recommendation_text_val
         })
     return jsonify({"recommendations": result}), 200
 
