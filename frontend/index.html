@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics App</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Your Data</h1>
+        <div class="upload-section">
+            <input type="file" id="csvFileInput" multiple accept=".csv">
+            <button id="uploadButton">Upload CSVs</button>
+            <div id="message" class="message"></div>
+            <ul id="uploadedFilesList" class="uploaded-files-list"></ul>
+        </div>
+
+        <hr>
+
+        <h2>Your Uploaded Tables</h2>
+        <div id="tablesList" class="tables-list">
+            <p id="noTablesMessage">No tables uploaded yet. Upload some CSVs above!</p>
+        </div>
+
+        <hr>
+
+        <h2>Define Table Relationships</h2>
+        <div class="relationship-section">
+            <p id="noTablesForRelationshipMessage">Upload at least two tables to define relationships.</p>
+            <div id="relationshipForm" style="display: none;">
+                <div>
+                    <label for="sourceTableSelect">Source Table:</label>
+                    <select id="sourceTableSelect" class="table-select"></select>
+                </div>
+                <div>
+                    <label for="sourceColumnSelect">Source Column:</label>
+                    <select id="sourceColumnSelect" class="column-select"></select>
+                </div>
+                <div>
+                    <label for="targetTableSelect">Target Table:</label>
+                    <select id="targetTableSelect" class="table-select"></select>
+                </div>
+                <div>
+                    <label for="targetColumnSelect">Target Column:</label>
+                    <select id="targetColumnSelect" class="column-select"></select>
+                </div>
+                <button id="addRelationshipButton">Add Relationship</button>
+                <div id="relationshipMessage" class="message"></div>
+            </div>
+
+            <h3>Defined Relationships</h3>
+            <div id="relationshipsList" class="relationships-list">
+                <p id="noRelationshipsMessage">No relationships defined yet.</p>
+            </div>
+        </div>
+
+        <hr>
+
+        <h2>Set Thresholds for Monitoring</h2>
+        <div class="threshold-section">
+            <p id="noTablesForThresholdMessage">Upload tables to set thresholds.</p>
+            <div id="thresholdForm" style="display: none;">
+                <div>
+                    <label for="thresholdTableSelect">Table:</label>
+                    <select id="thresholdTableSelect" class="table-select"></select>
+                </div>
+                <div>
+                    <label for="thresholdColumnSelect">Column:</label>
+                    <select id="thresholdColumnSelect" class="column-select"></select>
+                </div>
+                <div>
+                    <label for="thresholdFunctionSelect">Function:</label> <select id="thresholdFunctionSelect">
+                        <option value="">Select Function</option>
+                        <option value="AVG">AVG</option>
+                        <option value="MAX">MAX</option>
+                        <option value="MIN">MIN</option>
+                        <option value="SUM">SUM</option>
+                        <option value="COUNT">COUNT</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="thresholdOperatorSelect">Operator:</label>
+                    <select id="thresholdOperatorSelect">
+                        <option value="">Select Operator</option>
+                        <option value=">">></option>
+                        <option value="<"><</option>
+                        <option value="=">=</option>
+                        <option value=">=">>=</option>
+                        <option value="<="><=</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="thresholdValueInput">Threshold Value:</label>
+                    <input type="number" id="thresholdValueInput" placeholder="Enter numeric value">
+                    <span id="currentValueDisplay" class="current-value-display"></span> </div>
+                <button id="addThresholdButton">Add Threshold</button>
+                <div id="thresholdMessage" class="message"></div>
+            </div>
+            
+            <h3>Active Thresholds</h3>
+            <div id="activeThresholdsList" class="thresholds-list">
+                <p id="noActiveThresholdsMessage">No thresholds defined yet.</p>
+            </div>
+        </div>
+
+        <hr>
+
+        <h2>Ollama Recommendations</h2>
+        <div class="recommendation-section">
+            <div id="recommendationsList" class="recommendations-list">
+                <p id="noRecommendationsMessage">No recommendations generated yet. Upload data after setting thresholds!</p>
+            </div>
+        </div>
+
+        <div id="dataPreviewModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3 id="modalTableName"></h3>
+                <div class="data-table-container">
+                    <table id="previewTable" class="preview-table">
+                        <thead>
+                            <tr id="previewTableHeaderRow"></tr>
+                        </thead>
+                        <tbody id="previewTableBody">
+                        </tbody>
+                    </table>
+                    <p class="preview-note">Showing first 50 rows.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
